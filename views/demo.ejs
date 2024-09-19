@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vẽ Điểm GPS từ File CSV</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.24/"></script>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/Graphic",
+            "esri/geometry/Point",
+            "esri/geometry/Polyline",
+            "esri/symbols/SimpleMarkerSymbol",
+            "esri/symbols/SimpleLineSymbol"
+        ], function (Map, MapView, Graphic, Point, Polyline, SimpleMarkerSymbol, SimpleLineSymbol) {
+            // Tạo bản đồ và view
+            const map = new Map({
+                basemap: "streets-navigation-vector"
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [106.667426, 10.772344], // Kinh độ, Vĩ độ
+                zoom: 12
+            });
+
+            // Mảng để lưu các điểm
+            const points = [];
+
+            // Fetch dữ liệu từ API
+            fetch("http://localhost:3000/data")
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(item => {
+                        const latitude = parseFloat(item.latitude.trim());
+                        const longitude = parseFloat(item.longitude.trim());
+                        const point = new Point({
+                            longitude: longitude,
+                            latitude: latitude
+                        });
+                        points.push(point);
+
+                        // Tạo biểu tượng cho điểm GPS
+                        const markerSymbol = new SimpleMarkerSymbol({
+                            color: [255, 0, 0], // Màu đỏ
+                            size: 8, // Kích thước điểm
+                            outline: { // Đường viền
+                                color: [255, 0, 0], // Màu đỏ
+                                width: 1
+                            }
+                        });
+
+                        // Tạo graphic cho điểm và thêm vào view
+                        const pointGraphic = new Graphic({
+                            geometry: point,
+                            symbol: markerSymbol
+                        });
+
+                        view.graphics.add(pointGraphic);
+                    });
+
+                    // Tạo Polyline từ các điểm
+                    if (points.length > 1) {
+                        const polyline = new Polyline({
+                            paths: [points.map(p => [p.longitude, p.latitude])]
+                        });
+
+                        // Tạo biểu tượng cho Polyline
+                        const lineSymbol = new SimpleLineSymbol({
+                            color: [0, 255, 0], // Màu xanh lá cây
+                            width: 2,
+                            style: "solid" // Kiểu đường
+                        });
+
+                        // Tạo graphic cho Polyline và thêm vào view
+                        const polylineGraphic = new Graphic({
+                            geometry: polyline,
+                            symbol: lineSymbol
+                        });
+
+                        view.graphics.add(polylineGraphic);
+                        view.goTo(polylineGraphic);
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi đọc dữ liệu:', error);
+                });
+        });
+    </script>
+</body>
+
+</html>

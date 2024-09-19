@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vẽ Điểm GPS từ File CSV</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.24/"></script>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #fileInput {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="file" id="fileInput" accept=".csv" />
+    <div id="viewDiv"></div>
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/Graphic",
+            "esri/geometry/Point",
+            "esri/geometry/Polyline",
+            "esri/symbols/SimpleMarkerSymbol",
+            "esri/symbols/SimpleLineSymbol"
+        ], function (Map, MapView, Graphic, Point, Polyline, SimpleMarkerSymbol, SimpleLineSymbol) {
+            // Tạo bản đồ và view
+            const map = new Map({
+                basemap: "streets-navigation-vector"
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [106.667426, 10.772344], // Kinh độ, Vĩ độ
+                zoom: 12
+            });
+
+            const fileInput = document.getElementById('fileInput');
+            const points = [];
+
+            fileInput.addEventListener('change', handleFileSelect);
+
+            function handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file && file.type === "text/csv") {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const text = e.target.result;
+                        parseCSV(text);
+                    };
+                    reader.readAsText(file);
+                } else {
+                    alert('Vui lòng chọn một file CSV.');
+                }
+            }
+
+            function parseCSV(text) {
+                const lines = text.split('\n');
+                points.length = 0; // Xóa mảng điểm hiện tại
+
+                lines.forEach(line => {
+                    const [latitude, longitude] = line.split(',').map(val => parseFloat(val.trim()));
+                    if (!isNaN(latitude) && !isNaN(longitude)) {
+                        const point = new Point({
+                            longitude: longitude,
+                            latitude: latitude
+                        });
+                        points.push(point);
+
+                        // Tạo biểu tượng cho điểm GPS
+                        const markerSymbol = new SimpleMarkerSymbol({
+                            color: [255, 0, 0], // Màu đỏ
+                            size: 8, // Kích thước điểm
+                            outline: { // Đường viền
+                                color: [255, 0, 0], // Màu đỏ
+                                width: 1
+                            }
+                        });
+
+                        // Tạo graphic cho điểm và thêm vào view
+                        const pointGraphic = new Graphic({
+                            geometry: point,
+                            symbol: markerSymbol
+                        });
+
+                        view.graphics.add(pointGraphic);
+                    }
+                });
+
+                // Tạo Polyline từ các điểm
+                if (points.length > 1) {
+                    const polyline = new Polyline({
+                        paths: [points.map(p => [p.longitude, p.latitude])]
+                    });
+
+                    // Tạo biểu tượng cho Polyline
+                    const lineSymbol = new SimpleLineSymbol({
+                        color: [0, 255, 0], // Màu xanh lá cây
+                        width: 2,
+                        style: "solid" // Kiểu đường
+                    });
+
+                    // Tạo graphic cho Polyline và thêm vào view
+                    const polylineGraphic = new Graphic({
+                        geometry: polyline,
+                        symbol: lineSymbol
+                    });
+
+                    view.graphics.add(polylineGraphic);
+                    view.goTo(polylineGraphic);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
